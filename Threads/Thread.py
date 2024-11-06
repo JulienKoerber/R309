@@ -3,12 +3,12 @@ import time
 def thread1():
     for i in range(5):
         print("Je suis la thread 1")
-        time.sleep(0.5)
+        time.sleep(1)
 
 def thread2():
     for i in range(5):
         print("Je suis la thread 2")
-        time.sleep(0.5)
+        time.sleep(1)
 
 t1 = threading.Thread(target=thread1)
 t2 = threading.Thread(target=thread2)
