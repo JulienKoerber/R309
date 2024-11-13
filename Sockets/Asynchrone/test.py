@@ -1,3 +1,4 @@
+
 import socket
 import threading
 
@@ -15,7 +16,6 @@ def gerer_client(client_socket, adresse):
             elif message == "arret":
                 print("Arrêt du serveur.")
                 for client in clients:
-                    client.send("Le serveur est arrêté.".encode('utf-8'))
                     client.close()
                 serveur_socket.close()
                 exit()
@@ -29,27 +29,10 @@ def gerer_client(client_socket, adresse):
             client_socket.close()
             break
 
-def envoyer_message_serveur():
-    while True:
-        message = input("Serveur: ")
-        if message == "arret":
-            print("Arrêt du serveur.")
-            for client in clients:
-                client.send("Le serveur est arrêté.".encode('utf-8'))
-                client.close()
-            serveur_socket.close()
-            exit()
-        else:
-            for client in clients:
-                client.send(f"Serveur: {message}".encode('utf-8'))
-
 serveur_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serveur_socket.bind(('localhost', 12345))
 serveur_socket.listen(5)
 print("Serveur en attente de connexion...")
-
-thread_serveur = threading.Thread(target=envoyer_message_serveur)
-thread_serveur.start()
 
 while True:
     client_socket, adresse = serveur_socket.accept()
