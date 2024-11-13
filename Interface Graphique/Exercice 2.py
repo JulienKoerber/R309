@@ -27,7 +27,7 @@ fenetre = tk.Tk()
 fenetre.title("Convertisseur Celsius <-> Kelvin")
 fenetre.geometry("300x200")
 
-label_instruction = tk.Label(fenetre, text="Entrez la température :")
+label_instruction = tk.Label(fenetre, text="Entrez la température à convertir:")
 label_instruction.pack(pady=5)
 
 entree = tk.Entry(fenetre, width=20)
