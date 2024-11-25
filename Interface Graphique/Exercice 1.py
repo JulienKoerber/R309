@@ -8,7 +8,7 @@ def afficher_message():
         messagebox.showwarning("Attention", "Le champ de texte est vide!")
 
 fenetre = tk.Tk()
-fenetre.title("Exemple d'Interface Graphique")
+fenetre.title("Interface Graphique")
 fenetre.geometry("300x200")
 
 label_entree = tk.Label(fenetre, text="Entrez votre prénom :")
