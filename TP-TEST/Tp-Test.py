@@ -1,5 +1,5 @@
 #l'url de mon github est --> www.github.com/JulienKoerber/R309
-
+#J'ai combiner mes codes de l'exercice 1 de la partie interface graphique avec la partie Serveur Synchrone
 import tkinter as tk
 import socket
 class Serveur:
@@ -44,7 +44,6 @@ class Serveur:
         self.bouton_demarrer.config(state="normal")
         self.logs("Serveur démarré sur le port 4200")
 
-        Thread(target=self.accepter_client, daemon=True).start()
 
     def stop_serveur(self):
         if self.client_socket:
