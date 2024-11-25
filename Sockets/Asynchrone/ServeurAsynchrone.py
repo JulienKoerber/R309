@@ -6,7 +6,7 @@ clients = []
 def gerer_client(client_socket, adresse):
     while True:
         try:
-            message = client_socket.recv(1024).decode('utf-8')
+            message = client_socket.recv(4200).decode('utf-8')
             if message == "bye":
                 print(f"{adresse} a quitté la discussion.")
                 clients.remove(client_socket)
@@ -44,7 +44,7 @@ def envoyer_message_serveur():
                 client.send(f"Serveur: {message}".encode('utf-8'))
 
 serveur_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-serveur_socket.bind(('localhost', 12345))
+serveur_socket.bind(('localhost', 4200))
 serveur_socket.listen(5)
 print("Serveur en attente de connexion...")
 
