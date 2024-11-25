@@ -59,7 +59,6 @@ class Serveur:
         self.logs("en attente")
         self.client_socket, _ = self.serveur_socket.accept()
         self.logs("Client connecté")
-        Thread(target=self.recevoir_messages, daemon=True).start()
 
     def recevoir_messages(self):
         while True:
