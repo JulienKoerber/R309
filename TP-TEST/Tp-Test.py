@@ -30,11 +30,7 @@ class Serveur:
         self.client_socket = None
         self.serveur_actif = False
 
-    def toggle_serveur(self):
-        if not self.serveur_actif:
-            self.start_serveur()
-        else:
-            self.stop_serveur()
+
     def start_serveur(self):
         self.serveur_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serveur_socket.bind(('localhost', 4200))
@@ -55,6 +51,12 @@ class Serveur:
         self.bouton_envoyer.config(state="disabled")
         self.logs("Serveur arrêté")
 
+    def toggle_serveur(self):
+        if not self.serveur_actif:
+            self.toggle_serveur()
+        else:
+            self.stop_serveur()
+
     def accepter_client(self):
         self.logs("en attente")
         self.client_socket, _ = self.serveur_socket.accept()
@@ -67,7 +69,6 @@ class Serveur:
                 self.log(f"Message reçu : {message}")
             except:
                 break
-
     def envoyer_message(self):
         if self.client_socket:
             message = self.entree.get()
