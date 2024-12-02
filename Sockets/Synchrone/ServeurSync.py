@@ -1,7 +1,7 @@
 import socket
 
 serveur_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-serveur_socket.bind(('localhost', 12345))
+serveur_socket.bind(('localhost', 4200))
 serveur_socket.listen(1)
 print("Le Serveur attend la connexion du client...")
 

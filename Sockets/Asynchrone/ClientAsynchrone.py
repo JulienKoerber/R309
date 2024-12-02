@@ -4,14 +4,14 @@ import threading
 def recevoir_messages(socket):
     while True:
         try:
-            message = socket.recv(1024).decode('utf-8')
+            message = socket.recv(4200).decode('utf-8')
             print(message)
         except:
             print("Connexion fermée.")
             break
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect(('localhost', 12345))
+client_socket.connect(('localhost', 4200))
 
 thread = threading.Thread(target=recevoir_messages, args=(client_socket,))
 thread.start()
