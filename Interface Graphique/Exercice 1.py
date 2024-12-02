@@ -3,7 +3,7 @@ from tkinter import messagebox
 def afficher_message():
     texte = entree.get()
     if texte:
-        label_message.config(text=f"Message: Bonjour {texte} !")
+        label_message.config(text=f"Bonjour {texte} !")
     else:
         messagebox.showwarning("Attention", "Le champ de texte est vide!")
 
@@ -11,7 +11,7 @@ fenetre = tk.Tk()
 fenetre.title("Interface Graphique")
 fenetre.geometry("300x200")
 
-label_entree = tk.Label(fenetre, text="Entrez votre prénom :")
+label_entree = tk.Label(fenetre, text="Quel est votre prénom :")
 label_entree.pack(pady=5)
 entree = tk.Entry(fenetre, width=30)
 entree.pack(pady=5)

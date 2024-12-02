@@ -8,7 +8,7 @@ def execute_program(program_code):
         process = subprocess.run(["python3", "-c", program_code], capture_output=True, text=True)
         return process.stdout if process.returncode == 0 else process.stderr
     except Exception as e:
-        return f"Execution Error: {str(e)}"
+        return f"Erreur d'execution: {str(e)}"
 
 
 def handle_master(master_socket):
@@ -17,7 +17,7 @@ def handle_master(master_socket):
         result = execute_program(program_code)
         master_socket.sendall(result.encode('utf-8'))
     except Exception as e:
-        master_socket.sendall(f"Slave Error: {str(e)}".encode('utf-8'))
+        master_socket.sendall(f"Erreur Esclave: {str(e)}".encode('utf-8'))
     finally:
         master_socket.close()
 
@@ -29,7 +29,7 @@ def start_slave(ip, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.bind((ip, port))
         server.listen(5)
-        print(f"Slave Server started at {ip}:{port}")
+        print(f"Serveur Esclave {ip}:{port}")
 
         while True:
             master_socket, addr = server.accept()

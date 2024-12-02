@@ -1,79 +1,76 @@
 import socket
-import ssl
 import threading
-import psutil
-import subprocess
-import queue
-import json
-
-MAX_QUEUE_SIZE = 5
-SLAVES = [("127.0.0.1", 9001)]  # Liste des serveurs esclaves
-
-task_queue = queue.Queue(MAX_QUEUE_SIZE)
+import os
 
 
-def monitor_server():
-    cpu = psutil.cpu_percent()
-    memory = psutil.virtual_memory().percent
-    return cpu, memory
-
-
-def execute_program(program_code):
+def handle_client(client_socket, client_address):
+    """Gère la communication avec un client."""
+    print(f"Connexion acceptée de {client_address}")
     try:
-        process = subprocess.run(["python3", "-c", program_code], capture_output=True, text=True)
-        return process.stdout if process.returncode == 0 else process.stderr
+        # Réception du nom du fichier
+        filename = client_socket.recv(1024).decode('utf-8')
+        if not filename.endswith('.py'):
+            client_socket.sendall("Erreur : Seuls les fichiers .py sont acceptés.".encode('utf-8'))
+            return
+
+        # Réception des données du fichier
+        with open(f"reçu_{filename}", 'wb') as file:
+            while True:
+                data = client_socket.recv(4096)
+                if not data:
+                    break
+                file.write(data)
+
+        print(f"Fichier reçu et enregistré sous: reçu_{filename}")
+
+        # Lecture et exécution du fichier Python
+        try:
+            with open(f"reçu_{filename}", 'r') as f:
+                exec(f.read())
+            client_socket.sendall("Fichier exécuté avec succès.".encode('utf-8'))
+        except Exception as e:
+            error_message = f"Erreur lors de l'exécution : {e}"
+            print(error_message)
+            client_socket.sendall(error_message.encode('utf-8'))
     except Exception as e:
-        return f"Execution Error: {str(e)}"
-
-
-def delegate_to_slave(slave_ip, slave_port, program_code):
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection((slave_ip, slave_port)) as sock:
-            with context.wrap_socket(sock, server_hostname=slave_ip) as ssock:
-                ssock.sendall(program_code.encode('utf-8'))
-                response = ssock.recv(4096).decode('utf-8')
-                return response
-    except Exception as e:
-        return f"Error delegating to slave: {str(e)}"
-
-
-def handle_client(client_socket):
-    try:
-        program_code = client_socket.recv(4096).decode('utf-8')
-
-        cpu, memory = monitor_server()
-        if cpu > 75 or task_queue.full():  # Condition de délégation
-            for slave_ip, slave_port in SLAVES:
-                response = delegate_to_slave(slave_ip, slave_port, program_code)
-                client_socket.sendall(response.encode('utf-8'))
-                return
-
-        # Exécution locale
-        task_queue.put(program_code)
-        result = execute_program(program_code)
-        task_queue.get()
-        client_socket.sendall(result.encode('utf-8'))
-    except Exception as e:
-        client_socket.sendall(f"Server Error: {str(e)}".encode('utf-8'))
+        print(f"Erreur avec le client {client_address} : {e}")
     finally:
         client_socket.close()
+        print(f"Connexion avec {client_address} terminée.")
 
 
-def start_server(ip, port):
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+def start_server(host="0.0.0.0", port=4200):
+    """Démarre le serveur avec gestion automatique du port."""
+    while True:
+        try:
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind((host, port))
+            server_socket.listen(5)
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-        server.bind((ip, port))
-        server.listen(5)
-        print(f"Server started at {ip}:{port}")
+            print(f"Serveur en attente de connexions sur le port {port}...")
+            while True:
+                client_socket, client_address = server_socket.accept()
+                threading.Thread(target=handle_client, args=(client_socket, client_address)).start()
+        except PermissionError as pe:
+            print(f"PermissionError : {pe}. Essayez d'exécuter avec des privilèges administratifs.")
+            break
+        except OSError as oe:
+            print(f"OSError : {oe}. Le port {port} est indisponible. Essai avec le port {port + 1}.")
+            port += 1
+        except Exception as e:
+            print(f"Erreur inattendue : {e}")
+            break
+        finally:
+            server_socket.close()
 
-        while True:
-            client_socket, addr = server.accept()
-            client_socket = context.wrap_socket(client_socket, server_side=True)
-            threading.Thread(target=handle_client, args=(client_socket,)).start()
 
 
 if __name__ == "__main__":
-    start_server("0.0.0.0", 9000)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Serveur Python acceptant des fichiers Python à exécuter.")
+    parser.add_argument("--port", type=int, default=4200, help="Port sur lequel écouter les connexions (par défaut : 4200).")
+    args = parser.parse_args()
+
+    start_server(port=args.port)
