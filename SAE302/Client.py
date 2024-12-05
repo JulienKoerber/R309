@@ -1,51 +1,66 @@
 import socket
 import tkinter as tk
-from tkinter import messagebox, filedialog  # Importation de filedialog pour choisir un fichier
+from tkinter import messagebox, filedialog
 import os
+import threading
 
-# Fonction pour envoyer un fichier au serveur et demander son exécution
+# Fonction pour envoyer et exécuter le fichier
 def send_and_execute_file():
-    server_ip = ip_entry.get()
-    server_port = int(port_entry.get())
+    # Fonction qui envoie le fichier et récupère le résultat du serveur
+    def send_file_thread():
+        server_ip = ip_entry.get()
+        server_port = int(port_entry.get())
 
-    # Vérifier si un fichier est sélectionné
-    file_path = file_path_entry.get()
-    if not file_path or not os.path.exists(file_path):
-        messagebox.showerror("Erreur", "Veuillez sélectionner un fichier valide.")
-        return
+        # Vérifier si un fichier est sélectionné
+        file_path = file_path_entry.get()
+        if not file_path or not os.path.exists(file_path):
+            messagebox.showerror("Erreur", "Veuillez sélectionner un fichier valide.")
+            return
 
-    # Vérification de l'extension du fichier
-    if not file_path.endswith('.py'):
-        messagebox.showerror("Erreur", "Seuls les fichiers .py sont acceptés.")
-        return
+        # Vérification de l'extension du fichier
+        if not file_path.endswith('.py'):
+            messagebox.showerror("Erreur", "Seuls les fichiers .py sont acceptés.")
+            return
 
-    try:
-        # Création du socket et connexion au serveur
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.connect((server_ip, server_port))
+        try:
+            # Création du socket et connexion au serveur
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((server_ip, server_port))
 
-        # Envoyer le nom du fichier au serveur
-        filename = os.path.basename(file_path)
-        client_socket.sendall(filename.encode('utf-8'))
+            print(f"Connexion établie avec {server_ip}:{server_port}")  # Debug
 
-        # Envoyer le contenu du fichier
-        with open(file_path, 'rb') as file:
-            while chunk := file.read(4096):
-                client_socket.sendall(chunk)
+            # Envoyer le nom du fichier au serveur
+            filename = os.path.basename(file_path)
+            client_socket.sendall(filename.encode('utf-8'))
 
-        # Demander au serveur d'exécuter le fichier
-        client_socket.sendall(b"EXECUTE")
+            print(f"Fichier envoyé : {filename}")  # Debug
 
-        # Attendre la réponse du serveur (résultat de l'exécution)
-        result = client_socket.recv(4096).decode('utf-8')
+            # Envoyer le contenu du fichier
+            with open(file_path, 'rb') as file:
+                while chunk := file.read(4096):
+                    client_socket.sendall(chunk)
 
-        # Afficher le résultat dans l'interface graphique
-        output_text.delete(1.0, tk.END)  # Effacer l'ancienne sortie
-        output_text.insert(tk.END, result)  # Afficher le nouveau résultat
+            print("Contenu du fichier envoyé.")  # Debug
 
-        client_socket.close()
-    except Exception as e:
-        messagebox.showerror("Erreur de connexion", f"Impossible de se connecter au serveur : {e}")
+            # Demander au serveur d'exécuter le fichier
+            client_socket.sendall(b"EXECUTE")
+
+            print("Commande d'exécution envoyée.")  # Debug
+
+            # Attendre la réponse du serveur (résultat de l'exécution)
+            result = client_socket.recv(4096).decode('utf-8')
+
+            # Afficher le résultat dans l'interface graphique
+            output_text.delete(1.0, tk.END)  # Effacer l'ancienne sortie
+            output_text.insert(tk.END, result)  # Afficher le nouveau résultat
+
+            client_socket.close()
+        except Exception as e:
+            messagebox.showerror("Erreur de connexion", f"Impossible de se connecter au serveur : {e}")
+
+    # Démarrer l'envoi du fichier dans un thread séparé
+    threading.Thread(target=send_file_thread, daemon=True).start()
+
 
 # Fonction pour choisir un fichier
 def choose_file():

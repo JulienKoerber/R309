@@ -1,17 +1,19 @@
 import socket
 import threading
+import sys
+from io import StringIO
+import traceback
 
-
-# Fonction pour exécuter le code Python envoyé
+# Fonction pour exécuter le code Python envoyé et capturer les sorties
 def handle_client(client_socket):
     try:
         # Recevoir le nom du fichier
         filename = client_socket.recv(1024).decode('utf-8')
-        print(f"Fichier reçu: {filename}")
+        print(f"Fichier reçu : {filename}")
 
         # Vérification si le fichier est un .py
         if not filename.endswith('.py'):
-            client_socket.sendall("Erreur: Seuls les fichiers .py sont acceptés.")
+            client_socket.sendall("Erreur: Seuls les fichiers .py sont acceptés.".encode('utf-8'))
             client_socket.close()
             return
 
@@ -28,12 +30,20 @@ def handle_client(client_socket):
             f.write(file_content)
         print(f"Fichier {filename} sauvegardé.")
 
-        # Exécuter le code Python
+        # Capturer la sortie de l'exécution
+        output = StringIO()
+        sys.stdout = output
+        sys.stderr = output
+
+        # Exécuter le fichier Python et capturer les erreurs
         try:
-            exec_result = exec(file_content)
-            client_socket.sendall("Execution réussie.\nRésultat: " + str(exec_result).encode('utf-8'))
+            exec(file_content, globals())
+            result = output.getvalue()  # Récupérer la sortie
         except Exception as e:
-            client_socket.sendall(f"Erreur lors de l'exécution du fichier: {e}".encode('utf-8'))
+            result = f"Erreur lors de l'exécution du fichier: {str(e)}"
+
+        # Renvoyer le résultat de l'exécution au client
+        client_socket.sendall(result.encode('utf-8'))
 
     except Exception as e:
         print(f"Erreur serveur: {e}")
@@ -44,7 +54,7 @@ def handle_client(client_socket):
 # Fonction pour démarrer le serveur
 def start_server():
     host = '127.0.0.1'
-    port = 4300
+    port = 4500
 
     # Création du socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
