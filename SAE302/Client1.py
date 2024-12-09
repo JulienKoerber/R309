@@ -54,7 +54,7 @@ class ClientApp(QMainWindow):
 
         self.port_label = QLabel("Port du Serveur :")
         self.port_entry = QLineEdit()
-        self.port_entry.setText("5222")
+        self.port_entry.setText("4200")
 
         self.connect_button = QPushButton("Se Connecter")
         self.connect_button.clicked.connect(self.connect_to_server)

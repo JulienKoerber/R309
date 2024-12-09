@@ -28,7 +28,7 @@ def handle_client(client_socket):
         print(f"Fichier {temp_filename} sauvegardé.")
 
         # Chemin complet vers l'exécutable Python
-        python_path = r'C:\Users\julie\AppData\Local\Programs\Python\Python312\python.exe'
+        python_path = r'python'
 
         # Exécuter le fichier Python
         result = subprocess.run([python_path, temp_filename], capture_output=True, text=True)
@@ -49,7 +49,7 @@ def handle_client(client_socket):
 
 def start_server():
     host = '127.0.0.1'
-    port = 5222
+    port = 4200
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
