@@ -54,7 +54,7 @@ class ClientApp(QMainWindow):
 
         self.port_label = QLabel("Port du Serveur :")
         self.port_entry = QLineEdit()
-        self.port_entry.setText("5222")
+        self.port_entry.setText("5555")
 
         self.connect_button = QPushButton("Se Connecter")
         self.connect_button.clicked.connect(self.connect_to_server)
@@ -73,21 +73,17 @@ class ClientApp(QMainWindow):
         file_group = QGroupBox("Envoi de fichier Python")
         file_layout = QVBoxLayout()
 
-        # Bouton pour choisir un fichier
         self.file_button = QPushButton("Choisir un Fichier")
         self.file_button.clicked.connect(self.choose_file)
         self.file_button.setEnabled(False)
 
-        # Champ pour afficher le chemin du fichier sélectionné
         self.file_path_label = QLabel("Aucun fichier sélectionné")
         self.file_path_label.setWordWrap(True)
 
-        # Barre de progression pour l'envoi
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(False)
 
-        # Bouton pour envoyer et exécuter le fichier
         self.send_button = QPushButton("Envoyer et Exécuter")
         self.send_button.clicked.connect(self.send_and_execute_file)
         self.send_button.setEnabled(False)
@@ -121,7 +117,7 @@ class ClientApp(QMainWindow):
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect((server_ip, server_port))
             QMessageBox.information(self, "Succès", f"Connecté au serveur {server_ip}:{server_port}")
-            self.file_button.setEnabled(True)  # Activer le bouton pour choisir un fichier
+            self.file_button.setEnabled(True)
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Impossible de se connecter au serveur : {e}")
 
@@ -131,7 +127,7 @@ class ClientApp(QMainWindow):
         self.file_path, _ = file_dialog.getOpenFileName(self, "Sélectionner un fichier Python", "", "Python Files (*.py)")
         if self.file_path:
             self.file_path_label.setText(self.file_path)
-            self.send_button.setEnabled(True)  # Activer le bouton pour envoyer le fichier
+            self.send_button.setEnabled(True)
         else:
             self.file_path_label.setText("Aucun fichier sélectionné")
             self.send_button.setEnabled(False)
@@ -147,23 +143,20 @@ class ClientApp(QMainWindow):
             self.client_socket.sendall(filename.encode('utf-8'))
 
             with open(self.file_path, 'rb') as file:
-                self.progress_bar.setVisible(True)
-                total_size = os.path.getsize(self.file_path)
-                sent_size = 0
-
                 while chunk := file.read(4096):
                     self.client_socket.sendall(chunk)
-                    sent_size += len(chunk)
-                    progress = int((sent_size / total_size) * 100)
-                    self.progress_bar.setValue(progress)
 
-            # Envoyer le signal de fin
             self.client_socket.sendall(b"END")
 
-            # Recevoir le résultat
-            result = self.client_socket.recv(4096).decode('utf-8')
+            data = b""
+            while True:
+                part = self.client_socket.recv(4096)
+                if not part:
+                    break
+                data += part
+
+            result = data.decode('utf-8')
             self.result_text.setPlainText(result)
-            self.progress_bar.setVisible(False)
 
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Une erreur est survenue : {e}")

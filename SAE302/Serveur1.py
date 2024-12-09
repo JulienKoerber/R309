@@ -33,7 +33,7 @@ def handle_client(client_socket):
         # Exécuter le fichier Python
         result = subprocess.run([python_path, temp_filename], capture_output=True, text=True)
         if result.returncode == 0:
-            client_socket.sendall(f"Exécution réussie :\n{result.stdout}".encode('utf-8'))
+            client_socket.sendall(f"\n{result.stdout}".encode('utf-8'))
         else:
             client_socket.sendall(f"Erreur lors de l'exécution :\n{result.stderr}".encode('utf-8'))
 
@@ -49,7 +49,7 @@ def handle_client(client_socket):
 
 def start_server():
     host = '127.0.0.1'
-    port = 3999
+    port = 5222
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
