@@ -1,135 +1,177 @@
 import sys
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QFileDialog,
+    QMessageBox,
+    QGroupBox,
+    QProgressBar,
+)
 import socket
 import os
 import threading
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit, QFileDialog, QTextEdit, QMessageBox
 
-class ClientApp(QWidget):
+
+class ClientApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.init_ui()
+        self.setWindowTitle("Client Python avec PyQt5")
+        self.setGeometry(100, 100, 800, 600)
 
-    def init_ui(self):
-        # Layout principal
-        self.layout = QVBoxLayout()
+        # Initialisation du socket client
+        self.client_socket = None
 
-        # IP et Port
-        self.ip_entry = QLineEdit(self)
-        self.ip_entry.setPlaceholderText('IP du Serveur')
-        self.layout.addWidget(self.ip_entry)
+        # Widget principal
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
 
-        self.port_entry = QLineEdit(self)
-        self.port_entry.setPlaceholderText('Port du Serveur')
-        self.layout.addWidget(self.port_entry)
+        # Créer les sections de l'interface
+        self.init_connection_section()
+        self.init_file_section()
+        self.init_result_section()
 
-        # Sélection du fichier
-        self.file_button = QPushButton("Choisir un fichier", self)
-        self.file_button.clicked.connect(self.choose_file)
-        self.layout.addWidget(self.file_button)
+    def init_connection_section(self):
+        """Crée la section pour la connexion au serveur."""
+        connection_group = QGroupBox("Connexion au serveur")
+        connection_layout = QHBoxLayout()
 
-        # Affichage du fichier sélectionné
-        self.file_display = QLineEdit(self)
-        self.layout.addWidget(self.file_display)
+        self.ip_label = QLabel("IP du Serveur :")
+        self.ip_entry = QLineEdit()
+        self.ip_entry.setText("127.0.0.1")
 
-        # Zone de texte pour afficher le résultat de l'exécution
-        self.output_text = QTextEdit(self)
-        self.output_text.setPlaceholderText("Résultat d'exécution...")
-        self.layout.addWidget(self.output_text)
+        self.port_label = QLabel("Port du Serveur :")
+        self.port_entry = QLineEdit()
+        self.port_entry.setText("3999")
 
-        # Bouton pour envoyer le fichier
-        self.execute_button = QPushButton("Exécuter le fichier", self)
-        self.execute_button.clicked.connect(self.execute_file)
-        self.layout.addWidget(self.execute_button)
-
-        # Bouton de connexion
-        self.connect_button = QPushButton("Se connecter au serveur", self)
+        self.connect_button = QPushButton("Se Connecter")
         self.connect_button.clicked.connect(self.connect_to_server)
-        self.layout.addWidget(self.connect_button)
 
-        # Bouton pour fermer le client
-        self.shutdown_button = QPushButton("Fermer le client", self)
-        self.shutdown_button.clicked.connect(self.shutdown_client)
-        self.layout.addWidget(self.shutdown_button)
+        connection_layout.addWidget(self.ip_label)
+        connection_layout.addWidget(self.ip_entry)
+        connection_layout.addWidget(self.port_label)
+        connection_layout.addWidget(self.port_entry)
+        connection_layout.addWidget(self.connect_button)
 
-        # Initialiser la fenêtre
-        self.setLayout(self.layout)
-        self.setWindowTitle('Client Python')
-        self.show()
+        connection_group.setLayout(connection_layout)
+        self.layout.addWidget(connection_group)
 
-    def choose_file(self):
-        # Ouvrir la boîte de dialogue pour choisir un fichier Python
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Choisir un fichier Python', '', 'Python Files (*.py)')
-        if file_path:
-            self.file_display.setText(file_path)
+    def init_file_section(self):
+        """Crée la section pour sélectionner et envoyer un fichier."""
+        file_group = QGroupBox("Envoi de fichier Python")
+        file_layout = QVBoxLayout()
+
+        # Bouton pour choisir un fichier
+        self.file_button = QPushButton("Choisir un Fichier")
+        self.file_button.clicked.connect(self.choose_file)
+        self.file_button.setEnabled(False)
+
+        # Champ pour afficher le chemin du fichier sélectionné
+        self.file_path_label = QLabel("Aucun fichier sélectionné")
+        self.file_path_label.setWordWrap(True)
+
+        # Barre de progression pour l'envoi
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+
+        # Bouton pour envoyer et exécuter le fichier
+        self.send_button = QPushButton("Envoyer et Exécuter")
+        self.send_button.clicked.connect(self.send_and_execute_file)
+        self.send_button.setEnabled(False)
+
+        file_layout.addWidget(self.file_button)
+        file_layout.addWidget(self.file_path_label)
+        file_layout.addWidget(self.progress_bar)
+        file_layout.addWidget(self.send_button)
+
+        file_group.setLayout(file_layout)
+        self.layout.addWidget(file_group)
+
+    def init_result_section(self):
+        """Crée la section pour afficher les résultats."""
+        result_group = QGroupBox("Résultats de l'exécution")
+        result_layout = QVBoxLayout()
+
+        self.result_text = QTextEdit()
+        self.result_text.setReadOnly(True)
+
+        result_layout.addWidget(self.result_text)
+        result_group.setLayout(result_layout)
+        self.layout.addWidget(result_group)
 
     def connect_to_server(self):
-        # Connexion au serveur
+        """Se connecte au serveur avec l'IP et le port spécifiés."""
         server_ip = self.ip_entry.text()
-        server_port = self.port_entry.text()
-
-        if not server_ip or not server_port:
-            QMessageBox.warning(self, "Erreur", "Veuillez entrer une adresse IP et un port valides.")
-            return
+        server_port = int(self.port_entry.text())
 
         try:
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.client_socket.connect((server_ip, int(server_port)))
-            QMessageBox.information(self, "Connexion réussie", "Connexion réussie au serveur.")
+            self.client_socket.connect((server_ip, server_port))
+            QMessageBox.information(self, "Succès", f"Connecté au serveur {server_ip}:{server_port}")
+            self.file_button.setEnabled(True)  # Activer le bouton pour choisir un fichier
         except Exception as e:
-            QMessageBox.critical(self, "Erreur de connexion", f"Erreur de connexion : {e}")
+            QMessageBox.critical(self, "Erreur", f"Impossible de se connecter au serveur : {e}")
 
-    def execute_file(self):
-        # Fonction pour envoyer le fichier et exécuter le code Python
-        file_path = self.file_display.text()
+    def choose_file(self):
+        """Permet de sélectionner un fichier .py."""
+        file_dialog = QFileDialog(self)
+        self.file_path, _ = file_dialog.getOpenFileName(self, "Sélectionner un fichier Python", "", "Python Files (*.py)")
+        if self.file_path:
+            self.file_path_label.setText(self.file_path)
+            self.send_button.setEnabled(True)  # Activer le bouton pour envoyer le fichier
+        else:
+            self.file_path_label.setText("Aucun fichier sélectionné")
+            self.send_button.setEnabled(False)
 
-        if not file_path or not os.path.exists(file_path):
-            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un fichier valide.")
+    def send_and_execute_file(self):
+        """Envoie le fichier au serveur pour exécution."""
+        if not self.file_path or not os.path.exists(self.file_path):
+            QMessageBox.critical(self, "Erreur", "Veuillez sélectionner un fichier valide.")
             return
 
-        if not file_path.endswith('.py'):
-            QMessageBox.warning(self, "Erreur", "Seuls les fichiers .py sont acceptés.")
-            return
-
-        # Lancer l'exécution du fichier dans un thread séparé
-        threading.Thread(target=self.send_and_execute_file, args=(file_path,), daemon=True).start()
-
-    def send_and_execute_file(self, file_path):
         try:
-            # Envoyer le fichier au serveur
-            filename = os.path.basename(file_path)
-
-            # Envoyer le nom du fichier au serveur
+            filename = os.path.basename(self.file_path)
             self.client_socket.sendall(filename.encode('utf-8'))
 
-            # Envoyer le contenu du fichier
-            with open(file_path, 'rb') as file:
+            with open(self.file_path, 'rb') as file:
+                self.progress_bar.setVisible(True)
+                total_size = os.path.getsize(self.file_path)
+                sent_size = 0
+
                 while chunk := file.read(4096):
                     self.client_socket.sendall(chunk)
+                    sent_size += len(chunk)
+                    progress = int((sent_size / total_size) * 100)
+                    self.progress_bar.setValue(progress)
 
-            # Attendre la réponse du serveur
+            # Envoyer le signal de fin
+            self.client_socket.sendall(b"END")
+
+            # Recevoir le résultat
             result = self.client_socket.recv(4096).decode('utf-8')
-
-            # Afficher le résultat dans la zone de texte
-            self.output_text.append(result)
+            self.result_text.setPlainText(result)
+            self.progress_bar.setVisible(False)
 
         except Exception as e:
-            self.output_text.append(f"Erreur lors de l'envoi ou de l'exécution du fichier : {e}")
+            QMessageBox.critical(self, "Erreur", f"Une erreur est survenue : {e}")
 
-    def shutdown_client(self):
-        # Demander confirmation avant de fermer l'application
-        reply = QMessageBox.question(self, 'Fermer le client', 'Voulez-vous vraiment fermer le client ?',
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
-        if reply == QMessageBox.Yes:
-            # Réinitialiser les champs IP et port
-            self.ip_entry.clear()
-            self.port_entry.clear()
-
-            # Fermer l'application
-            self.close()
+    def closeEvent(self, event):
+        """Fermeture propre de la connexion lors de la fermeture de l'application."""
+        if self.client_socket:
+            self.client_socket.close()
+        event.accept()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
-    client_app = ClientApp()
+    client = ClientApp()
+    client.show()
     sys.exit(app.exec_())
