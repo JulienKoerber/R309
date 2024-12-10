@@ -1,30 +1,83 @@
 import socket
 import threading
 import subprocess
+import os
 
 SLAVE_IP = "0.0.0.0"
 SLAVE_PORT = 6000
 
-def execute_code(code_str):
-    """Exécute le code Python reçu."""
-    try:
-        result = subprocess.run(
-            ["python3", "-c", code_str],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            return result.stdout
-        else:
-            return "Erreur d'exécution:\n" + result.stderr
-    except subprocess.TimeoutExpired:
-        return "Erreur : temps d'exécution dépassé."
+def cleanup_java_files():
+    if os.path.exists("Main.java"):
+        os.remove("Main.java")
+    if os.path.exists("Main.class"):
+        os.remove("Main.class")
 
-def handle_request(conn):
+def execute_code(language, code_str):
     try:
-        # Réception du code
+        if language == "python":
+            result = subprocess.run(
+                ["python3", "-c", code_str],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                return result.stdout
+            else:
+                return "Erreur d'exécution Python:\n" + result.stderr
+        elif language == "java":
+            with open("Main.java", "w", encoding="utf-8") as f:
+                f.write(code_str)
+            compile_res = subprocess.run(
+                ["javac", "Main.java"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5
+            )
+            if compile_res.returncode != 0:
+                cleanup_java_files()
+                return "Erreur de compilation Java:\n" + compile_res.stderr
+
+            run_res = subprocess.run(
+                ["java", "Main"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5
+            )
+            cleanup_java_files()
+            if run_res.returncode == 0:
+                return run_res.stdout
+            else:
+                return "Erreur d'exécution Java:\n" + run_res.stderr
+        else:
+            return "Langage non supporté."
+    except subprocess.TimeoutExpired:
+        cleanup_java_files()
+        return f"Erreur : temps d'exécution dépassé ({language.capitalize()})."
+    except Exception as e:
+        cleanup_java_files()
+        return f"Erreur interne ({language.capitalize()}) : {str(e)}"
+
+def handle_request(conn, addr):
+    print(f"Connexion du maître: {addr}")
+    try:
+        # Langage
+        lang_size_data = conn.recv(4)
+        if len(lang_size_data) < 4:
+            return
+        lang_size = int.from_bytes(lang_size_data, 'big')
+        lang_bytes = b''
+        while len(lang_bytes) < lang_size:
+            chunk = conn.recv(lang_size - len(lang_bytes))
+            if not chunk:
+                return
+            lang_bytes += chunk
+        language = lang_bytes.decode('utf-8')
+
+        # Code
         size_data = conn.recv(4)
         if len(size_data) < 4:
             return
@@ -37,19 +90,22 @@ def handle_request(conn):
             code += chunk
         code_str = code.decode('utf-8')
 
-        # Exécution
-        response = execute_code(code_str)
+        print(f"Reçu code {language}, longueur {len(code_str)}")
 
-        # Envoi de la réponse
+        response = execute_code(language, code_str)
+
         resp_bytes = response.encode('utf-8')
         resp_size = len(resp_bytes)
         conn.sendall(resp_size.to_bytes(4, 'big'))
         conn.sendall(resp_bytes)
+        print("Réponse envoyée au maître.")
 
     except Exception as e:
         print("Erreur handle_request:", e)
     finally:
         conn.close()
+        cleanup_java_files()
+        print(f"Connexion avec {addr} terminée.")
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -58,7 +114,7 @@ def main():
         print(f"Serveur esclave en écoute sur {SLAVE_IP}:{SLAVE_PORT}")
         while True:
             conn, addr = s.accept()
-            t = threading.Thread(target=handle_request, args=(conn,))
+            t = threading.Thread(target=handle_request, args=(conn, addr))
             t.start()
 
 if __name__ == "__main__":
