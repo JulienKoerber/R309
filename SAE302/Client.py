@@ -1,6 +1,5 @@
 import sys
 import socket
-
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QTextEdit, QPushButton, QMessageBox, QFileDialog,
@@ -256,3 +255,4 @@ if __name__ == "__main__":
     gui = ClientGUI()
     gui.show()
     sys.exit(app.exec())
+
