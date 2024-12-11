@@ -3,10 +3,16 @@ import threading
 import subprocess
 import sys
 import os
+import argparse
+
+# Analyse des arguments
+parser = argparse.ArgumentParser(description="Serveur maître")
+parser.add_argument("--max_local_tasks", type=int, default=2, help="Nombre maximum de programmes à exécuter localement avant de déléguer aux esclaves")
+args = parser.parse_args()
 
 MASTER_IP = "0.0.0.0"
 MASTER_PORT = 5000
-MAX_LOCAL_TASKS = 2
+MAX_LOCAL_TASKS = args.max_local_tasks
 
 SLAVE_SERVERS = [
     ("127.0.0.1", 6000),
@@ -36,10 +42,8 @@ def execute_code(language, code_str):
             else:
                 return "Erreur d'exécution Python:\n" + result.stderr
         elif language == "java":
-            # Écrire dans Main.java
             with open("Main.java", "w", encoding="utf-8") as f:
                 f.write(code_str)
-            # Compiler
             compile_res = subprocess.run(
                 ["javac", "Main.java"],
                 stdout=subprocess.PIPE,
@@ -51,7 +55,6 @@ def execute_code(language, code_str):
                 cleanup_java_files()
                 return "Erreur de compilation Java:\n" + compile_res.stderr
 
-            # Exécuter
             run_res = subprocess.run(
                 ["java", "Main"],
                 stdout=subprocess.PIPE,
@@ -172,7 +175,7 @@ def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((MASTER_IP, MASTER_PORT))
         s.listen(5)
-        print(f"Serveur maître en écoute sur {MASTER_IP}:{MASTER_PORT}")
+        print(f"Serveur maître en écoute sur {MASTER_IP}:{MASTER_PORT}, MAX_LOCAL_TASKS={MAX_LOCAL_TASKS}")
         try:
             while True:
                 conn, addr = s.accept()

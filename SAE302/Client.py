@@ -189,7 +189,7 @@ class ClientGUI(QWidget):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         code_content = f.read()
                     self.code_edit.setPlainText(code_content)
-                    # Déterminer le langage
+                    # Déterminer le langage par extension
                     if file_path.endswith(".py"):
                         self.language_combo.setCurrentText("Python")
                     elif file_path.endswith(".java"):

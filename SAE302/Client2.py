@@ -16,7 +16,6 @@ class ClientGUI2(QWidget):
         
         self.setMinimumSize(600, 400)
         
-        # Fond blanc
         palette = self.palette()
         palette.setColor(QPalette.ColorRole.Window, QColor("#ffffff"))
         palette.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
@@ -77,7 +76,6 @@ class ClientGUI2(QWidget):
             }
         """
         
-        # Paramètres serveur
         server_group = QGroupBox("Paramètres du serveur")
         server_group.setFont(title_font)
         server_group.setStyleSheet(groupbox_style)
@@ -101,7 +99,6 @@ class ClientGUI2(QWidget):
         
         server_group.setLayout(server_layout)
         
-        # Code
         code_group = QGroupBox("Code")
         code_group.setFont(title_font)
         code_group.setStyleSheet(groupbox_style)
@@ -149,12 +146,10 @@ class ClientGUI2(QWidget):
         
         code_group.setLayout(code_layout)
 
-        # Séparateur
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        # Résultat
         result_group = QGroupBox("Résultat")
         result_group.setFont(title_font)
         result_group.setStyleSheet(groupbox_style)
@@ -189,7 +184,6 @@ class ClientGUI2(QWidget):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         code_content = f.read()
                     self.code_edit.setPlainText(code_content)
-                    # Déterminer le langage par extension
                     if file_path.endswith(".py"):
                         self.language_combo.setCurrentText("Python")
                     elif file_path.endswith(".java"):
@@ -214,7 +208,7 @@ class ClientGUI2(QWidget):
             QMessageBox.warning(self, "Attention", "Le code est vide.")
             return
         
-        language = self.language_combo.currentText().lower()  # "python" ou "java"
+        language = self.language_combo.currentText().lower()
         
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
