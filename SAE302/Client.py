@@ -12,7 +12,7 @@ from PyQt6.QtCore import Qt
 class ClientGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Client - Exécution de code Python/Java")
+        self.setWindowTitle("Client - Exécution de code Python/Java/C")
         
         self.setMinimumSize(600, 400)
         
@@ -131,6 +131,7 @@ class ClientGUI(QWidget):
         self.language_combo = QComboBox()
         self.language_combo.addItem("Python")
         self.language_combo.addItem("Java")
+        self.language_combo.addItem("C")
         
         lang_layout = QHBoxLayout()
         lang_layout.addWidget(language_label)
@@ -180,7 +181,7 @@ class ClientGUI(QWidget):
         
     def load_file(self):
         file_dialog = QFileDialog(self, "Sélectionner un fichier")
-        file_dialog.setNameFilter("Fichiers Python/Java (*.py *.java)")
+        file_dialog.setNameFilter("Fichiers Python/Java/C (*.py *.java *.c)")
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
@@ -194,6 +195,8 @@ class ClientGUI(QWidget):
                         self.language_combo.setCurrentText("Python")
                     elif file_path.endswith(".java"):
                         self.language_combo.setCurrentText("Java")
+                    elif file_path.endswith(".c"):
+                        self.language_combo.setCurrentText("C")
                 except Exception as e:
                     QMessageBox.critical(self, "Erreur", f"Impossible de lire le fichier : {e}")
     
@@ -214,7 +217,7 @@ class ClientGUI(QWidget):
             QMessageBox.warning(self, "Attention", "Le code est vide.")
             return
         
-        language = self.language_combo.currentText().lower()  # "python" ou "java"
+        language = self.language_combo.currentText().lower()  # "python", "java" ou "c"
         
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

@@ -9,13 +9,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QAction, QFont, QPalette, QColor
 from PyQt6.QtCore import Qt
 
-class ClientGUI2(QWidget):
+class ClientGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Client 2 - Exécution de code Python/Java")
+        self.setWindowTitle("Client - Exécution de code Python/Java/C")
         
         self.setMinimumSize(600, 400)
         
+        # Fond blanc
         palette = self.palette()
         palette.setColor(QPalette.ColorRole.Window, QColor("#ffffff"))
         palette.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
@@ -76,6 +77,7 @@ class ClientGUI2(QWidget):
             }
         """
         
+        # Paramètres serveur
         server_group = QGroupBox("Paramètres du serveur")
         server_group.setFont(title_font)
         server_group.setStyleSheet(groupbox_style)
@@ -99,12 +101,13 @@ class ClientGUI2(QWidget):
         
         server_group.setLayout(server_layout)
         
+        # Code
         code_group = QGroupBox("Code")
         code_group.setFont(title_font)
         code_group.setStyleSheet(groupbox_style)
         
         self.code_edit = QTextEdit()
-        self.code_edit.setPlainText("print('Hello from Client 2')")
+        self.code_edit.setPlainText("print('Hello')")
         self.code_edit.setStyleSheet("QTextEdit { color: #000000; background-color: #ffffff; }")
 
         self.load_file_button = QPushButton("Charger un fichier")
@@ -128,6 +131,7 @@ class ClientGUI2(QWidget):
         self.language_combo = QComboBox()
         self.language_combo.addItem("Python")
         self.language_combo.addItem("Java")
+        self.language_combo.addItem("C")
         
         lang_layout = QHBoxLayout()
         lang_layout.addWidget(language_label)
@@ -146,10 +150,12 @@ class ClientGUI2(QWidget):
         
         code_group.setLayout(code_layout)
 
+        # Séparateur
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
 
+        # Résultat
         result_group = QGroupBox("Résultat")
         result_group.setFont(title_font)
         result_group.setStyleSheet(groupbox_style)
@@ -175,7 +181,7 @@ class ClientGUI2(QWidget):
         
     def load_file(self):
         file_dialog = QFileDialog(self, "Sélectionner un fichier")
-        file_dialog.setNameFilter("Fichiers Python/Java (*.py *.java)")
+        file_dialog.setNameFilter("Fichiers Python/Java/C (*.py *.java *.c)")
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
@@ -184,10 +190,13 @@ class ClientGUI2(QWidget):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         code_content = f.read()
                     self.code_edit.setPlainText(code_content)
+                    # Déterminer le langage par extension
                     if file_path.endswith(".py"):
                         self.language_combo.setCurrentText("Python")
                     elif file_path.endswith(".java"):
                         self.language_combo.setCurrentText("Java")
+                    elif file_path.endswith(".c"):
+                        self.language_combo.setCurrentText("C")
                 except Exception as e:
                     QMessageBox.critical(self, "Erreur", f"Impossible de lire le fichier : {e}")
     
@@ -208,7 +217,7 @@ class ClientGUI2(QWidget):
             QMessageBox.warning(self, "Attention", "Le code est vide.")
             return
         
-        language = self.language_combo.currentText().lower()
+        language = self.language_combo.currentText().lower()  # "python", "java" ou "c"
         
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -244,6 +253,6 @@ class ClientGUI2(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    gui2 = ClientGUI2()
-    gui2.show()
+    gui = ClientGUI()
+    gui.show()
     sys.exit(app.exec())

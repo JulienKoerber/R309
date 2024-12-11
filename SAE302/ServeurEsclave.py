@@ -12,6 +12,12 @@ def cleanup_java_files():
     if os.path.exists("Main.class"):
         os.remove("Main.class")
 
+def cleanup_c_files():
+    if os.path.exists("main.c"):
+        os.remove("main.c")
+    if os.path.exists("main.out"):
+        os.remove("main.out")
+
 def execute_code(language, code_str):
     try:
         if language == "python":
@@ -52,13 +58,47 @@ def execute_code(language, code_str):
                 return run_res.stdout
             else:
                 return "Erreur d'exécution Java:\n" + run_res.stderr
+
+        elif language == "c":
+            with open("main.c", "w", encoding="utf-8") as f:
+                f.write(code_str)
+            compile_res = subprocess.run(
+                ["gcc", "main.c", "-o", "main.out"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5
+            )
+            if compile_res.returncode != 0:
+                cleanup_c_files()
+                return "Erreur de compilation C:\n" + compile_res.stderr
+
+            run_res = subprocess.run(
+                ["./main.out"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5
+            )
+            cleanup_c_files()
+            if run_res.returncode == 0:
+                return run_res.stdout
+            else:
+                return "Erreur d'exécution C:\n" + run_res.stderr
+
         else:
             return "Langage non supporté."
     except subprocess.TimeoutExpired:
-        cleanup_java_files()
+        if language == "java":
+            cleanup_java_files()
+        if language == "c":
+            cleanup_c_files()
         return f"Erreur : temps d'exécution dépassé ({language.capitalize()})."
     except Exception as e:
-        cleanup_java_files()
+        if language == "java":
+            cleanup_java_files()
+        if language == "c":
+            cleanup_c_files()
         return f"Erreur interne ({language.capitalize()}) : {str(e)}"
 
 def handle_request(conn, addr):
@@ -104,7 +144,6 @@ def handle_request(conn, addr):
         print("Erreur handle_request:", e)
     finally:
         conn.close()
-        cleanup_java_files()
         print(f"Connexion avec {addr} terminée.")
 
 def main():
