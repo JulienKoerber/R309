@@ -3,15 +3,10 @@ import threading
 import subprocess
 import sys
 import os
-import argparse
-
-parser = argparse.ArgumentParser(description="Serveur maître")
-parser.add_argument("--max_local_tasks", type=int, default=2, help="Nombre maximum de programmes à exécuter localement avant de déléguer aux esclaves")
-args = parser.parse_args()
 
 MASTER_IP = "0.0.0.0"
 MASTER_PORT = 5000
-MAX_LOCAL_TASKS = args.max_local_tasks
+MAX_LOCAL_TASKS = 2  # Lorsque le serveur maître a déjà 2 tâches, il délègue la suivante
 
 SLAVE_SERVERS = [
     ("127.0.0.1", 6000),
@@ -155,7 +150,6 @@ def handle_client(conn, addr):
     global current_local_tasks
     print(f"Connexion du client {addr}")
     try:
-        # Langage
         lang_size_data = conn.recv(4)
         if len(lang_size_data) < 4:
             return
@@ -168,7 +162,6 @@ def handle_client(conn, addr):
             lang_bytes += chunk
         language = lang_bytes.decode('utf-8')
 
-        # Code
         size_data = conn.recv(4)
         if len(size_data) < 4:
             return
@@ -186,6 +179,7 @@ def handle_client(conn, addr):
         with current_lock:
             local_load = current_local_tasks
 
+        # Si local_load >= 2 on délègue
         if local_load >= MAX_LOCAL_TASKS and SLAVE_SERVERS:
             print("Charge locale élevée, tentative de délégation...")
             response = delegate_to_slave(language, code_str)
@@ -205,7 +199,6 @@ def handle_client(conn, addr):
     except Exception as e:
         print("Erreur handle_client:", e)
     finally:
-        # Pas de nettoyage global ici sauf pour java/c éventuellement déjà gérés
         conn.close()
         print(f"Connexion avec {addr} terminée.")
 
@@ -229,4 +222,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

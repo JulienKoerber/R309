@@ -104,7 +104,6 @@ def execute_code(language, code_str):
 def handle_request(conn, addr):
     print(f"Connexion du maître: {addr}")
     try:
-        # Langage
         lang_size_data = conn.recv(4)
         if len(lang_size_data) < 4:
             return
@@ -117,7 +116,6 @@ def handle_request(conn, addr):
             lang_bytes += chunk
         language = lang_bytes.decode('utf-8')
 
-        # Code
         size_data = conn.recv(4)
         if len(size_data) < 4:
             return
@@ -158,4 +156,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

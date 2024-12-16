@@ -1,5 +1,6 @@
 import sys
 import socket
+
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QTextEdit, QPushButton, QMessageBox, QFileDialog,
@@ -15,7 +16,7 @@ class ClientGUI(QWidget):
         
         self.setMinimumSize(600, 400)
         
-        # Fond blanc
+        # Palette (fond blanc)
         palette = self.palette()
         palette.setColor(QPalette.ColorRole.Window, QColor("#ffffff"))
         palette.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
@@ -100,7 +101,7 @@ class ClientGUI(QWidget):
         
         server_group.setLayout(server_layout)
         
-        # Code
+        # Zone code
         code_group = QGroupBox("Code")
         code_group.setFont(title_font)
         code_group.setStyleSheet(groupbox_style)
@@ -189,7 +190,6 @@ class ClientGUI(QWidget):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         code_content = f.read()
                     self.code_edit.setPlainText(code_content)
-                    # Déterminer le langage par extension
                     if file_path.endswith(".py"):
                         self.language_combo.setCurrentText("Python")
                     elif file_path.endswith(".java"):
@@ -216,7 +216,7 @@ class ClientGUI(QWidget):
             QMessageBox.warning(self, "Attention", "Le code est vide.")
             return
         
-        language = self.language_combo.currentText().lower()  # "python", "java" ou "c"
+        language = self.language_combo.currentText().lower()
         
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -255,4 +255,3 @@ if __name__ == "__main__":
     gui = ClientGUI()
     gui.show()
     sys.exit(app.exec())
-
