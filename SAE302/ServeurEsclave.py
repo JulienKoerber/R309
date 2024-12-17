@@ -26,7 +26,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20  # Timeout à 20 secondes
             )
             if result.returncode == 0:
                 return result.stdout
@@ -40,7 +40,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             if compile_res.returncode != 0:
                 cleanup_java_files()
@@ -51,7 +51,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             cleanup_java_files()
             if run_res.returncode == 0:
@@ -67,7 +67,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             if compile_res.returncode != 0:
                 cleanup_c_files()
@@ -78,7 +78,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             cleanup_c_files()
             if run_res.returncode == 0:

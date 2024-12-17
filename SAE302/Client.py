@@ -1,22 +1,20 @@
 import sys
 import socket
-
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QTextEdit, QPushButton, QMessageBox, QFileDialog,
     QGroupBox, QMenuBar, QMenu, QFrame, QComboBox
 )
 from PyQt6.QtGui import QAction, QFont, QPalette, QColor
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 
 class ClientGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Client - Exécution de code Python/Java/C")
+        self.setWindowTitle("Client - Exécution de code Python/Java/C + CPU Auto")
         
         self.setMinimumSize(600, 400)
         
-        # Palette (fond blanc)
         palette = self.palette()
         palette.setColor(QPalette.ColorRole.Window, QColor("#ffffff"))
         palette.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
@@ -77,7 +75,6 @@ class ClientGUI(QWidget):
             }
         """
         
-        # Paramètres serveur
         server_group = QGroupBox("Paramètres du serveur")
         server_group.setFont(title_font)
         server_group.setStyleSheet(groupbox_style)
@@ -101,13 +98,12 @@ class ClientGUI(QWidget):
         
         server_group.setLayout(server_layout)
         
-        # Zone code
         code_group = QGroupBox("Code")
         code_group.setFont(title_font)
         code_group.setStyleSheet(groupbox_style)
         
         self.code_edit = QTextEdit()
-        self.code_edit.setPlainText("print('Hello')")
+        self.code_edit.setPlainText("print('SAE 302 Julien Koerber')")
         self.code_edit.setStyleSheet("QTextEdit { color: #000000; background-color: #ffffff; }")
 
         self.load_file_button = QPushButton("Charger un fichier")
@@ -150,12 +146,21 @@ class ClientGUI(QWidget):
         
         code_group.setLayout(code_layout)
 
-        # Séparateur
+        cpu_group = QGroupBox("Charge CPU")
+        cpu_group.setFont(title_font)
+        cpu_group.setStyleSheet(groupbox_style)
+
+        self.cpu_line = QLineEdit()
+        self.cpu_line.setReadOnly(True)
+        self.cpu_line.setText("En attente...")
+        cpu_layout = QHBoxLayout()
+        cpu_layout.addWidget(self.cpu_line)
+        cpu_group.setLayout(cpu_layout)
+
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        # Résultat
         result_group = QGroupBox("Résultat")
         result_group.setFont(title_font)
         result_group.setStyleSheet(groupbox_style)
@@ -172,15 +177,20 @@ class ClientGUI(QWidget):
         main_layout.setMenuBar(menubar)
         main_layout.addWidget(server_group)
         main_layout.addWidget(code_group)
+        main_layout.addWidget(cpu_group)
         main_layout.addWidget(line)
         main_layout.addWidget(result_group)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(15)
         
         self.setLayout(main_layout)
-        
+
+        self.cpu_timer = QTimer()
+        self.cpu_timer.timeout.connect(self.update_cpu_load)
+        self.cpu_timer.start(2000)
+
     def load_file(self):
-        file_dialog = QFileDialog(self, "Sélectionner un fichier")
+        file_dialog = QFileDialog(self, "fichier")
         file_dialog.setNameFilter("Fichiers Python/Java/C (*.py *.java *.c)")
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
@@ -218,6 +228,9 @@ class ClientGUI(QWidget):
         
         language = self.language_combo.currentText().lower()
         
+        self.send_request(ip, port, language, code_str, update_result=True)
+
+    def send_request(self, ip, port, language, code_str, update_result=False):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
@@ -233,7 +246,10 @@ class ClientGUI(QWidget):
 
                 resp_size_data = s.recv(4)
                 if len(resp_size_data) < 4:
-                    self.result_display.setPlainText("Erreur de réception (taille de la réponse)")
+                    if update_result:
+                        self.result_display.setPlainText("Erreur de réception")
+                    else:
+                        self.cpu_line.setText("Erreur réception")
                     return
                 resp_size = int.from_bytes(resp_size_data, 'big')
                 
@@ -243,9 +259,29 @@ class ClientGUI(QWidget):
                     if not chunk:
                         break
                     response += chunk
-                self.result_display.setPlainText(response.decode('utf-8'))
+                resp_str = response.decode('utf-8')
+
+                if update_result:
+                    self.result_display.setPlainText(resp_str)
+                else:
+                    if language == "cpu_load":
+                        self.cpu_line.setText(resp_str)
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de contacter le serveur: {e}")
+            if update_result:
+                QMessageBox.critical(self, "Erreur", f"Impossible de contacter le serveur: {e}")
+            else:
+                self.cpu_line.setText("Erreur contact serveur")
+
+    def update_cpu_load(self):
+        ip = self.server_ip.text().strip()
+        port_str = self.server_port.text().strip()
+        
+        if not port_str.isdigit():
+            self.cpu_line.setText("Port invalide")
+            return
+        port = int(port_str)
+
+        self.send_request(ip, port, "cpu_load", "GET_CPU_LOAD", update_result=False)
 
     def close_application(self):
         self.close()

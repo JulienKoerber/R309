@@ -3,11 +3,11 @@ import threading
 import subprocess
 import sys
 import os
+import psutil
 
 MASTER_IP = "0.0.0.0"
 MASTER_PORT = 5000
-MAX_LOCAL_TASKS = 2  # Lorsque le serveur maître a déjà 2 tâches, il délègue la suivante
-
+MAX_LOCAL_TASKS = 2  # Seuil
 SLAVE_SERVERS = [
     ("127.0.0.1", 6000),
 ]
@@ -28,6 +28,11 @@ def cleanup_c_files():
         os.remove("main.out")
 
 def execute_code(language, code_str):
+    # Cas spécial pour CPU load
+    if language == "cpu_load" and code_str == "GET_CPU_LOAD":
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        return f"Charge CPU actuelle: {cpu_percent:.2f}%"
+
     try:
         if language == "python":
             result = subprocess.run(
@@ -35,7 +40,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20  # Timeout augmenté à 20s
             )
             if result.returncode == 0:
                 return result.stdout
@@ -49,7 +54,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             if compile_res.returncode != 0:
                 cleanup_java_files()
@@ -60,7 +65,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             cleanup_java_files()
             if run_res.returncode == 0:
@@ -76,7 +81,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             if compile_res.returncode != 0:
                 cleanup_c_files()
@@ -87,7 +92,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=20
             )
             cleanup_c_files()
             if run_res.returncode == 0:
@@ -179,17 +184,19 @@ def handle_client(conn, addr):
         with current_lock:
             local_load = current_local_tasks
 
-        # Si local_load >= 2 on délègue
-        if local_load >= MAX_LOCAL_TASKS and SLAVE_SERVERS:
-            print("Charge locale élevée, tentative de délégation...")
-            response = delegate_to_slave(language, code_str)
-        else:
-            with current_lock:
-                current_local_tasks += 1
-            print("Exécution locale du code...")
+        if language == "cpu_load" and code_str == "GET_CPU_LOAD":
             response = execute_code(language, code_str)
-            with current_lock:
-                current_local_tasks -= 1
+        else:
+            if local_load >= MAX_LOCAL_TASKS and SLAVE_SERVERS:
+                print("Charge locale élevée, tentative de délégation...")
+                response = delegate_to_slave(language, code_str)
+            else:
+                with current_lock:
+                    current_local_tasks += 1
+                print("Exécution locale du code...")
+                response = execute_code(language, code_str)
+                with current_lock:
+                    current_local_tasks -= 1
 
         resp_bytes = response.encode('utf-8')
         resp_size = len(resp_bytes)
