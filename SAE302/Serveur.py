@@ -7,7 +7,7 @@ import psutil
 
 MASTER_IP = "0.0.0.0"
 MASTER_PORT = 5000
-MAX_LOCAL_TASKS = 2  # Seuil
+MAX_LOCAL_TASKS = 2  
 SLAVE_SERVERS = [
     ("127.0.0.1", 6000),
 ]
@@ -28,7 +28,6 @@ def cleanup_c_files():
         os.remove("main.out")
 
 def execute_code(language, code_str):
-    # Cas spécial pour CPU load
     if language == "cpu_load" and code_str == "GET_CPU_LOAD":
         cpu_percent = psutil.cpu_percent(interval=0.5)
         return f"Charge CPU actuelle: {cpu_percent:.2f}%"
@@ -40,7 +39,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=20  # Timeout augmenté à 20s
+                timeout=20 
             )
             if result.returncode == 0:
                 return result.stdout

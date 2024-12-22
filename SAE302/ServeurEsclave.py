@@ -26,7 +26,7 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=20  # Timeout à 20 secondes
+                timeout=20 
             )
             if result.returncode == 0:
                 return result.stdout

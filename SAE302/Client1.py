@@ -1,182 +1,297 @@
 import sys
-from PyQt5.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QTextEdit,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
-    QFileDialog,
-    QMessageBox,
-    QGroupBox,
-    QProgressBar,
-)
 import socket
-import os
-import threading
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QTextEdit, QPushButton, QMessageBox, QFileDialog,
+    QGroupBox, QMenuBar, QMenu, QFrame, QComboBox
+)
+from PyQt6.QtGui import QAction, QFont, QPalette, QColor
+from PyQt6.QtCore import Qt, QTimer
 
-
-class ClientApp(QMainWindow):
+class ClientGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Client Python avec PyQt5")
-        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Client - Exécution de code Python/Java/C + CPU Auto")
+        
+        self.setMinimumSize(600, 400)
+        
+        palette = self.palette()
+        palette.setColor(palette.ColorRole.Window, QColor("#ffffff"))
+        palette.setColor(palette.ColorRole.Base, QColor("#ffffff"))
+        self.setPalette(palette)
+        
+        title_font = QFont("Arial", 12, QFont.Weight.Bold)
+        
+        menubar = QMenuBar(self)
+        file_menu = QMenu("Fichier", self)
+        
+        load_action = QAction("Charger un fichier", self)
+        load_action.triggered.connect(self.load_file)
+        file_menu.addAction(load_action)
 
-        # Initialisation du socket client
-        self.client_socket = None
+        quit_action = QAction("Quitter", self)
+        quit_action.triggered.connect(self.close_application)
+        file_menu.addSeparator()
+        file_menu.addAction(quit_action)
+        
+        menubar.addMenu(file_menu)
+        
+        button_style = """
+            QPushButton {
+                color: #ffffff; 
+                background-color: #007ACC; 
+                border: none; 
+                padding: 8px 15px; 
+                font-weight: bold;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #005A9E;
+            }
+        """
+        lineedit_style = """
+            QLineEdit {
+                color: #ffffff;
+                background-color: #007ACC;
+                border: none;
+                padding: 4px 8px;
+                font-weight: bold;
+                border-radius: 4px;
+            }
+        """
+        label_style = """
+            QLabel {
+                font-weight: bold;
+                color: #005A9E;
+            }
+        """
+        groupbox_style = """
+            QGroupBox {
+                color: #000000; 
+                font-weight: bold;
+            }
+        """
+        
+        server_group = QGroupBox("Paramètres du serveur")
+        server_group.setFont(title_font)
+        server_group.setStyleSheet(groupbox_style)
+        
+        self.server_ip = QLineEdit("127.0.0.1")
+        self.server_ip.setStyleSheet(lineedit_style)
+        
+        self.server_port = QLineEdit("5000")
+        self.server_port.setStyleSheet(lineedit_style)
 
-        # Widget principal
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
+        ip_label = QLabel("IP :")
+        ip_label.setStyleSheet(label_style)
+        port_label = QLabel("Port :")
+        port_label.setStyleSheet(label_style)
+        
+        server_layout = QHBoxLayout()
+        server_layout.addWidget(ip_label)
+        server_layout.addWidget(self.server_ip)
+        server_layout.addWidget(port_label)
+        server_layout.addWidget(self.server_port)
+        
+        server_group.setLayout(server_layout)
+        
+        code_group = QGroupBox("Code")
+        code_group.setFont(title_font)
+        code_group.setStyleSheet(groupbox_style)
+        
+        self.code_edit = QTextEdit()
+        self.code_edit.setPlainText("print('Hello')")
+        self.code_edit.setStyleSheet("QTextEdit { color: #000000; background-color: #ffffff; }")
 
-        # Créer les sections de l'interface
-        self.init_connection_section()
-        self.init_file_section()
-        self.init_result_section()
-
-        # Bouton pour quitter l'application
+        self.load_file_button = QPushButton("Charger un fichier")
+        self.load_file_button.setStyleSheet(button_style)
+        self.load_file_button.clicked.connect(self.load_file)
+        
+        self.send_button = QPushButton("Envoyer")
+        self.send_button.setStyleSheet(button_style)
+        self.send_button.clicked.connect(self.send_code)
+        
+        self.clear_button = QPushButton("Effacer")
+        self.clear_button.setStyleSheet(button_style)
+        self.clear_button.clicked.connect(self.clear_code)
+        
         self.quit_button = QPushButton("Quitter")
-        self.quit_button.clicked.connect(self.close)
-        self.layout.addWidget(self.quit_button)
+        self.quit_button.setStyleSheet(button_style)
+        self.quit_button.clicked.connect(self.close_application)
+        
+        language_label = QLabel("Langage :")
+        language_label.setStyleSheet(label_style)
+        self.language_combo = QComboBox()
+        self.language_combo.addItem("Python")
+        self.language_combo.addItem("Java")
+        self.language_combo.addItem("C")
+        
+        lang_layout = QHBoxLayout()
+        lang_layout.addWidget(language_label)
+        lang_layout.addWidget(self.language_combo)
+        
+        code_button_layout = QHBoxLayout()
+        code_button_layout.addWidget(self.load_file_button)
+        code_button_layout.addWidget(self.send_button)
+        code_button_layout.addWidget(self.clear_button)
+        code_button_layout.addWidget(self.quit_button)
+        
+        code_layout = QVBoxLayout()
+        code_layout.addLayout(lang_layout)
+        code_layout.addWidget(self.code_edit)
+        code_layout.addLayout(code_button_layout)
+        
+        code_group.setLayout(code_layout)
 
-    def init_connection_section(self):
-        """Crée la section pour la connexion au serveur."""
-        connection_group = QGroupBox("Connexion au serveur")
-        connection_layout = QHBoxLayout()
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.ip_label = QLabel("IP du Serveur :")
-        self.ip_entry = QLineEdit()
-        self.ip_entry.setText("127.0.0.1")
+        self.cpu_group = QGroupBox("Charge CPU (Auto)")
+        self.cpu_group.setFont(title_font)
+        self.cpu_group.setStyleSheet(groupbox_style)
+        
+        self.cpu_label = QLabel("Charge CPU actuelle: ???%")
+        self.cpu_label.setStyleSheet("QLabel { color: #ffffff; background-color: #007ACC; padding: 6px; }")
+        
+        cpu_layout = QVBoxLayout()
+        cpu_layout.addWidget(self.cpu_label)
+        self.cpu_group.setLayout(cpu_layout)
 
-        self.port_label = QLabel("Port du Serveur :")
-        self.port_entry = QLineEdit()
-        self.port_entry.setText("4200")
-
-        self.connect_button = QPushButton("Se Connecter")
-        self.connect_button.clicked.connect(self.connect_to_server)
-
-        connection_layout.addWidget(self.ip_label)
-        connection_layout.addWidget(self.ip_entry)
-        connection_layout.addWidget(self.port_label)
-        connection_layout.addWidget(self.port_entry)
-        connection_layout.addWidget(self.connect_button)
-
-        connection_group.setLayout(connection_layout)
-        self.layout.addWidget(connection_group)
-
-    def init_file_section(self):
-        """Crée la section pour sélectionner et envoyer un fichier."""
-        file_group = QGroupBox("Envoi de fichier Python")
-        file_layout = QVBoxLayout()
-
-        # Bouton pour choisir un fichier
-        self.file_button = QPushButton("Choisir un Fichier")
-        self.file_button.clicked.connect(self.choose_file)
-        self.file_button.setEnabled(False)
-
-        # Champ pour afficher le chemin du fichier sélectionné
-        self.file_path_label = QLabel("Aucun fichier sélectionné")
-        self.file_path_label.setWordWrap(True)
-
-        # Barre de progression pour l'envoi
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(0)
-        self.progress_bar.setVisible(False)
-
-        # Bouton pour envoyer et exécuter le fichier
-        self.send_button = QPushButton("Envoyer et Exécuter")
-        self.send_button.clicked.connect(self.send_and_execute_file)
-        self.send_button.setEnabled(False)
-
-        file_layout.addWidget(self.file_button)
-        file_layout.addWidget(self.file_path_label)
-        file_layout.addWidget(self.progress_bar)
-        file_layout.addWidget(self.send_button)
-
-        file_group.setLayout(file_layout)
-        self.layout.addWidget(file_group)
-
-    def init_result_section(self):
-        """Crée la section pour afficher les résultats."""
-        result_group = QGroupBox("Résultats de l'exécution")
+        result_group = QGroupBox("Résultat")
+        result_group.setFont(title_font)
+        result_group.setStyleSheet(groupbox_style)
+        
+        self.result_display = QTextEdit()
+        self.result_display.setReadOnly(True)
+        self.result_display.setStyleSheet("QTextEdit { color: #000000; background-color: #ffffff; }")
+        
         result_layout = QVBoxLayout()
-
-        self.result_text = QTextEdit()
-        self.result_text.setReadOnly(True)
-
-        result_layout.addWidget(self.result_text)
+        result_layout.addWidget(self.result_display)
         result_group.setLayout(result_layout)
-        self.layout.addWidget(result_group)
+        
+        main_layout = QVBoxLayout()
+        main_layout.setMenuBar(menubar)
+        main_layout.addWidget(server_group)
+        main_layout.addWidget(code_group)
+        main_layout.addWidget(line)
+        main_layout.addWidget(self.cpu_group)
+        main_layout.addWidget(result_group)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(15)
+        
+        self.setLayout(main_layout)
 
-    def connect_to_server(self):
-        """Se connecte au serveur avec l'IP et le port spécifiés."""
-        server_ip = self.ip_entry.text()
-        server_port = int(self.port_entry.text())
-
-        try:
-            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.client_socket.connect((server_ip, server_port))
-            QMessageBox.information(self, "Succès", f"Connecté au serveur {server_ip}:{server_port}")
-            self.file_button.setEnabled(True)  # Activer le bouton pour choisir un fichier
-        except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de se connecter au serveur : {e}")
-
-    def choose_file(self):
-        """Permet de sélectionner un fichier .py."""
-        file_dialog = QFileDialog(self)
-        self.file_path, _ = file_dialog.getOpenFileName(self, "Sélectionner un fichier Python", "", "Python Files (*.py)")
-        if self.file_path:
-            self.file_path_label.setText(self.file_path)
-            self.send_button.setEnabled(True)  # Activer le bouton pour envoyer le fichier
-        else:
-            self.file_path_label.setText("Aucun fichier sélectionné")
-            self.send_button.setEnabled(False)
-
-    def send_and_execute_file(self):
-        """Envoie le fichier au serveur pour exécution."""
-        if not self.file_path or not os.path.exists(self.file_path):
-            QMessageBox.critical(self, "Erreur", "Veuillez sélectionner un fichier valide.")
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_cpu_load)
+        self.timer.start(10000)  
+        
+    def load_file(self):
+        """Ouvre une boîte de dialogue pour sélectionner un fichier Python/Java/C."""
+        file_dialog = QFileDialog(self, "Sélectionner un fichier")
+        file_dialog.setNameFilter("Fichiers Python/Java/C (*.py *.java *.c)")
+        if file_dialog.exec():
+            selected_files = file_dialog.selectedFiles()
+            if selected_files:
+                file_path = selected_files[0]
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        code_content = f.read()
+                    self.code_edit.setPlainText(code_content)
+                    if file_path.endswith(".py"):
+                        self.language_combo.setCurrentText("Python")
+                    elif file_path.endswith(".java"):
+                        self.language_combo.setCurrentText("Java")
+                    elif file_path.endswith(".c"):
+                        self.language_combo.setCurrentText("C")
+                except Exception as e:
+                    QMessageBox.critical(self, "Erreur", f"Impossible de lire le fichier : {e}")
+    
+    def clear_code(self):
+        """Efface le contenu de la zone de code."""
+        self.code_edit.clear()
+    
+    def send_code(self):
+        """Envoie le code au serveur."""
+        ip = self.server_ip.text().strip()
+        port_str = self.server_port.text().strip()
+        
+        if not port_str.isdigit():
+            QMessageBox.critical(self, "Erreur", "Le port doit être un nombre.")
             return
+        port = int(port_str)
+        
+        code_str = self.code_edit.toPlainText()
+        if not code_str:
+            QMessageBox.warning(self, "Attention", "Le code est vide.")
+            return
+        
+        language = self.language_combo.currentText().lower()
+        
+        self.send_request(ip, port, language, code_str, destination="result")
 
+    def update_cpu_load(self):
+        """Méthode appelée automatiquement toutes les 10 secondes pour mettre à jour la charge CPU."""
+        ip = self.server_ip.text().strip()
+        port_str = self.server_port.text().strip()
+        if not port_str.isdigit():
+            return
+        port = int(port_str)
+        self.send_request(ip, port, "cpu_load", "GET_CPU_LOAD", destination="cpu")
+
+    def send_request(self, ip, port, language, code_str, destination="result"):
+        """
+        Envoie au serveur 'language' et 'code_str'.
+        destination='result' => on affiche dans self.result_display
+        destination='cpu' => on affiche dans self.cpu_label
+        """
         try:
-            filename = os.path.basename(self.file_path)
-            self.client_socket.sendall(filename.encode('utf-8'))
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((ip, port))
+                lang_bytes = language.encode('utf-8')
+                lang_size = len(lang_bytes)
+                s.sendall(lang_size.to_bytes(4, 'big'))
+                s.sendall(lang_bytes)
+                
+                code_bytes = code_str.encode('utf-8')
+                size = len(code_bytes)
+                s.sendall(size.to_bytes(4, 'big'))
+                s.sendall(code_bytes)
 
-            with open(self.file_path, 'rb') as file:
-                self.progress_bar.setVisible(True)
-                total_size = os.path.getsize(self.file_path)
-                sent_size = 0
+                resp_size_data = s.recv(4)
+                if len(resp_size_data) < 4:
+                    if destination == "cpu":
+                        self.cpu_label.setText("Erreur de réception CPU.")
+                    else:
+                        self.result_display.setPlainText("Erreur de réception (taille de la réponse)")
+                    return
+                resp_size = int.from_bytes(resp_size_data, 'big')
+                
+                response = b''
+                while len(response) < resp_size:
+                    chunk = s.recv(resp_size - len(response))
+                    if not chunk:
+                        break
+                    response += chunk
+                response_str = response.decode('utf-8')
 
-                while chunk := file.read(4096):
-                    self.client_socket.sendall(chunk)
-                    sent_size += len(chunk)
-                    progress = int((sent_size / total_size) * 100)
-                    self.progress_bar.setValue(progress)
-
-            # Envoyer le signal de fin
-            self.client_socket.sendall(b"END")
-
-            # Recevoir le résultat
-            result = self.client_socket.recv(4096).decode('utf-8')
-            self.result_text.setPlainText(result)
-            self.progress_bar.setVisible(False)
+                if destination == "cpu":
+                    self.cpu_label.setText(response_str)
+                else:
+                    self.result_display.setPlainText(response_str)
 
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Une erreur est survenue : {e}")
+            if destination == "cpu":
+                self.cpu_label.setText(f"Erreur CPU: {e}")
+            else:
+                QMessageBox.critical(self, "Erreur", f"Impossible de contacter le serveur: {e}")
 
-    def closeEvent(self, event):
-        """Fermeture propre de la connexion lors de la fermeture de l'application."""
-        if self.client_socket:
-            self.client_socket.close()
-        event.accept()
-
+    def close_application(self):
+        """Ferme proprement l'application."""
+        self.close()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    client = ClientApp()
-    client.show()
-    sys.exit(app.exec_())
+    gui = ClientGUI()
+    gui.show()
+    sys.exit(app.exec())

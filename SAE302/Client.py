@@ -16,8 +16,8 @@ class ClientGUI(QWidget):
         self.setMinimumSize(600, 400)
         
         palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor("#ffffff"))
-        palette.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
+        palette.setColor(palette.ColorRole.Window, QColor("#ffffff"))
+        palette.setColor(palette.ColorRole.Base, QColor("#ffffff"))
         self.setPalette(palette)
         
         title_font = QFont("Arial", 12, QFont.Weight.Bold)
@@ -49,7 +49,6 @@ class ClientGUI(QWidget):
                 background-color: #005A9E;
             }
         """
-        
         lineedit_style = """
             QLineEdit {
                 color: #ffffff;
@@ -60,14 +59,12 @@ class ClientGUI(QWidget):
                 border-radius: 4px;
             }
         """
-        
         label_style = """
             QLabel {
                 font-weight: bold;
                 color: #005A9E;
             }
         """
-
         groupbox_style = """
             QGroupBox {
                 color: #000000; 
@@ -103,24 +100,24 @@ class ClientGUI(QWidget):
         code_group.setStyleSheet(groupbox_style)
         
         self.code_edit = QTextEdit()
-        self.code_edit.setPlainText("print('SAE 302 Julien Koerber')")
+        self.code_edit.setPlainText("print('Hello')")
         self.code_edit.setStyleSheet("QTextEdit { color: #000000; background-color: #ffffff; }")
 
         self.load_file_button = QPushButton("Charger un fichier")
-        self.load_file_button.clicked.connect(self.load_file)
         self.load_file_button.setStyleSheet(button_style)
+        self.load_file_button.clicked.connect(self.load_file)
         
         self.send_button = QPushButton("Envoyer")
-        self.send_button.clicked.connect(self.send_code)
         self.send_button.setStyleSheet(button_style)
+        self.send_button.clicked.connect(self.send_code)
         
         self.clear_button = QPushButton("Effacer")
-        self.clear_button.clicked.connect(self.clear_code)
         self.clear_button.setStyleSheet(button_style)
+        self.clear_button.clicked.connect(self.clear_code)
         
         self.quit_button = QPushButton("Quitter")
-        self.quit_button.clicked.connect(self.close_application)
         self.quit_button.setStyleSheet(button_style)
+        self.quit_button.clicked.connect(self.close_application)
         
         language_label = QLabel("Langage :")
         language_label.setStyleSheet(label_style)
@@ -146,20 +143,20 @@ class ClientGUI(QWidget):
         
         code_group.setLayout(code_layout)
 
-        cpu_group = QGroupBox("Charge CPU")
-        cpu_group.setFont(title_font)
-        cpu_group.setStyleSheet(groupbox_style)
-
-        self.cpu_line = QLineEdit()
-        self.cpu_line.setReadOnly(True)
-        self.cpu_line.setText("En attente...")
-        cpu_layout = QHBoxLayout()
-        cpu_layout.addWidget(self.cpu_line)
-        cpu_group.setLayout(cpu_layout)
-
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.cpu_group = QGroupBox("Charge CPU (Auto)")
+        self.cpu_group.setFont(title_font)
+        self.cpu_group.setStyleSheet(groupbox_style)
+        
+        self.cpu_label = QLabel("Charge CPU actuelle: ???%")
+        self.cpu_label.setStyleSheet("QLabel { color: #ffffff; background-color: #007ACC; padding: 6px; }")
+        
+        cpu_layout = QVBoxLayout()
+        cpu_layout.addWidget(self.cpu_label)
+        self.cpu_group.setLayout(cpu_layout)
 
         result_group = QGroupBox("Résultat")
         result_group.setFont(title_font)
@@ -177,20 +174,21 @@ class ClientGUI(QWidget):
         main_layout.setMenuBar(menubar)
         main_layout.addWidget(server_group)
         main_layout.addWidget(code_group)
-        main_layout.addWidget(cpu_group)
         main_layout.addWidget(line)
+        main_layout.addWidget(self.cpu_group)
         main_layout.addWidget(result_group)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(15)
         
         self.setLayout(main_layout)
 
-        self.cpu_timer = QTimer()
-        self.cpu_timer.timeout.connect(self.update_cpu_load)
-        self.cpu_timer.start(2000)
-
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_cpu_load)
+        self.timer.start(10000)  
+        
     def load_file(self):
-        file_dialog = QFileDialog(self, "fichier")
+        """Ouvre une boîte de dialogue pour sélectionner un fichier Python/Java/C."""
+        file_dialog = QFileDialog(self, "Sélectionner un fichier")
         file_dialog.setNameFilter("Fichiers Python/Java/C (*.py *.java *.c)")
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
@@ -210,9 +208,11 @@ class ClientGUI(QWidget):
                     QMessageBox.critical(self, "Erreur", f"Impossible de lire le fichier : {e}")
     
     def clear_code(self):
+        """Efface le contenu de la zone de code."""
         self.code_edit.clear()
     
     def send_code(self):
+        """Envoie le code au serveur."""
         ip = self.server_ip.text().strip()
         port_str = self.server_port.text().strip()
         
@@ -228,9 +228,23 @@ class ClientGUI(QWidget):
         
         language = self.language_combo.currentText().lower()
         
-        self.send_request(ip, port, language, code_str, update_result=True)
+        self.send_request(ip, port, language, code_str, destination="result")
 
-    def send_request(self, ip, port, language, code_str, update_result=False):
+    def update_cpu_load(self):
+        """Méthode appelée automatiquement toutes les 10 secondes pour mettre à jour la charge CPU."""
+        ip = self.server_ip.text().strip()
+        port_str = self.server_port.text().strip()
+        if not port_str.isdigit():
+            return
+        port = int(port_str)
+        self.send_request(ip, port, "cpu_load", "GET_CPU_LOAD", destination="cpu")
+
+    def send_request(self, ip, port, language, code_str, destination="result"):
+        """
+        Envoie au serveur 'language' et 'code_str'.
+        destination='result' => on affiche dans self.result_display
+        destination='cpu' => on affiche dans self.cpu_label
+        """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
@@ -246,10 +260,10 @@ class ClientGUI(QWidget):
 
                 resp_size_data = s.recv(4)
                 if len(resp_size_data) < 4:
-                    if update_result:
-                        self.result_display.setPlainText("Erreur de réception")
+                    if destination == "cpu":
+                        self.cpu_label.setText("Erreur de réception CPU.")
                     else:
-                        self.cpu_line.setText("Erreur réception")
+                        self.result_display.setPlainText("Erreur de réception (taille de la réponse)")
                     return
                 resp_size = int.from_bytes(resp_size_data, 'big')
                 
@@ -259,31 +273,21 @@ class ClientGUI(QWidget):
                     if not chunk:
                         break
                     response += chunk
-                resp_str = response.decode('utf-8')
+                response_str = response.decode('utf-8')
 
-                if update_result:
-                    self.result_display.setPlainText(resp_str)
+                if destination == "cpu":
+                    self.cpu_label.setText(response_str)
                 else:
-                    if language == "cpu_load":
-                        self.cpu_line.setText(resp_str)
+                    self.result_display.setPlainText(response_str)
+
         except Exception as e:
-            if update_result:
-                QMessageBox.critical(self, "Erreur", f"Impossible de contacter le serveur: {e}")
+            if destination == "cpu":
+                self.cpu_label.setText(f"Erreur CPU: {e}")
             else:
-                self.cpu_line.setText("Erreur contact serveur")
-
-    def update_cpu_load(self):
-        ip = self.server_ip.text().strip()
-        port_str = self.server_port.text().strip()
-        
-        if not port_str.isdigit():
-            self.cpu_line.setText("Port invalide")
-            return
-        port = int(port_str)
-
-        self.send_request(ip, port, "cpu_load", "GET_CPU_LOAD", update_result=False)
+                QMessageBox.critical(self, "Erreur", f"Impossible de contacter le serveur: {e}")
 
     def close_application(self):
+        """Ferme proprement l'application."""
         self.close()
 
 if __name__ == "__main__":
