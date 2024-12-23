@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, QTimer
 class ClientGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Client - Exécution de code Python/Java/C + CPU Auto")
+        self.setWindowTitle("Client")
         
         self.setMinimumSize(600, 400)
         
@@ -100,7 +100,7 @@ class ClientGUI(QWidget):
         code_group.setStyleSheet(groupbox_style)
         
         self.code_edit = QTextEdit()
-        self.code_edit.setPlainText("print('Hello')")
+        self.code_edit.setPlainText("print('Hello World ! ')")
         self.code_edit.setStyleSheet("QTextEdit { color: #000000; background-color: #ffffff; }")
 
         self.load_file_button = QPushButton("Charger un fichier")
@@ -147,11 +147,11 @@ class ClientGUI(QWidget):
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.cpu_group = QGroupBox("Charge CPU (Auto)")
+        self.cpu_group = QGroupBox("Charge du CPU")
         self.cpu_group.setFont(title_font)
         self.cpu_group.setStyleSheet(groupbox_style)
         
-        self.cpu_label = QLabel("Charge CPU actuelle: ???%")
+        self.cpu_label = QLabel("Charge du CPU actuelle: ")
         self.cpu_label.setStyleSheet("QLabel { color: #ffffff; background-color: #007ACC; padding: 6px; }")
         
         cpu_layout = QVBoxLayout()
@@ -187,7 +187,6 @@ class ClientGUI(QWidget):
         self.timer.start(10000)  
         
     def load_file(self):
-        """Ouvre une boîte de dialogue pour sélectionner un fichier Python/Java/C."""
         file_dialog = QFileDialog(self, "Sélectionner un fichier")
         file_dialog.setNameFilter("Fichiers Python/Java/C (*.py *.java *.c)")
         if file_dialog.exec():
@@ -208,11 +207,9 @@ class ClientGUI(QWidget):
                     QMessageBox.critical(self, "Erreur", f"Impossible de lire le fichier : {e}")
     
     def clear_code(self):
-        """Efface le contenu de la zone de code."""
         self.code_edit.clear()
     
     def send_code(self):
-        """Envoie le code au serveur."""
         ip = self.server_ip.text().strip()
         port_str = self.server_port.text().strip()
         
@@ -231,7 +228,6 @@ class ClientGUI(QWidget):
         self.send_request(ip, port, language, code_str, destination="result")
 
     def update_cpu_load(self):
-        """Méthode appelée automatiquement toutes les 10 secondes pour mettre à jour la charge CPU."""
         ip = self.server_ip.text().strip()
         port_str = self.server_port.text().strip()
         if not port_str.isdigit():
@@ -240,11 +236,6 @@ class ClientGUI(QWidget):
         self.send_request(ip, port, "cpu_load", "GET_CPU_LOAD", destination="cpu")
 
     def send_request(self, ip, port, language, code_str, destination="result"):
-        """
-        Envoie au serveur 'language' et 'code_str'.
-        destination='result' => on affiche dans self.result_display
-        destination='cpu' => on affiche dans self.cpu_label
-        """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
@@ -287,7 +278,6 @@ class ClientGUI(QWidget):
                 QMessageBox.critical(self, "Erreur", f"Impossible de contacter le serveur: {e}")
 
     def close_application(self):
-        """Ferme proprement l'application."""
         self.close()
 
 if __name__ == "__main__":
