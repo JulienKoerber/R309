@@ -5,7 +5,7 @@ import sys
 import os
 import psutil
 
-MASTER_IP = "0.0.0.0"
+MASTER_IP = "127.0.0.1"
 MASTER_PORT = 5000
 MAX_LOCAL_TASKS = 2  
 SLAVE_SERVERS = [
@@ -148,7 +148,7 @@ def delegate_to_slave(language, code_str):
             print(f"Impossible de joindre l'esclave {ip}:{port}: {e}")
             continue
 
-    return "Erreur : Aucun esclave disponible pour traiter la demande."
+    return "Erreur : Le serveur esclave n'est pas disponible pour traiter la demande."
 
 def handle_client(conn, addr):
     global current_local_tasks
@@ -187,12 +187,12 @@ def handle_client(conn, addr):
             response = execute_code(language, code_str)
         else:
             if local_load >= MAX_LOCAL_TASKS and SLAVE_SERVERS:
-                print("Charge locale élevée, tentative de délégation...")
+                print("Charge élevée, tentative de délégation...")
                 response = delegate_to_slave(language, code_str)
             else:
                 with current_lock:
                     current_local_tasks += 1
-                print("Exécution locale du code...")
+                print("Exécution du code...")
                 response = execute_code(language, code_str)
                 with current_lock:
                     current_local_tasks -= 1
@@ -212,7 +212,7 @@ def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((MASTER_IP, MASTER_PORT))
         s.listen(5)
-        print(f"Serveur maître en écoute sur {MASTER_IP}:{MASTER_PORT}, MAX_LOCAL_TASKS={MAX_LOCAL_TASKS}")
+        print(f"Serveur maître en écoute sur {MASTER_IP} : {MASTER_PORT}, MAX_LOCAL_TASKS={MAX_LOCAL_TASKS}")
         try:
             while True:
                 conn, addr = s.accept()

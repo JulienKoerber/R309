@@ -3,7 +3,7 @@ import threading
 import subprocess
 import os
 
-SLAVE_IP = "0.0.0.0"
+SLAVE_IP = "127.0.0.1"
 SLAVE_PORT = 6000
 
 def cleanup_java_files():
@@ -148,7 +148,7 @@ def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((SLAVE_IP, SLAVE_PORT))
         s.listen(5)
-        print(f"Serveur esclave en écoute sur {SLAVE_IP}:{SLAVE_PORT}")
+        print(f"Serveur Esclave en écoute sur {SLAVE_IP} : {SLAVE_PORT}")
         while True:
             conn, addr = s.accept()
             t = threading.Thread(target=handle_request, args=(conn, addr))
