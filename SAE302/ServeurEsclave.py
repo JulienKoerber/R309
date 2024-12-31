@@ -26,12 +26,13 @@ def execute_code(language, code_str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=20 
+                timeout=20
             )
             if result.returncode == 0:
                 return result.stdout
             else:
                 return "Erreur d'exécution Python:\n" + result.stderr
+
         elif language == "java":
             with open("Main.java", "w", encoding="utf-8") as f:
                 f.write(code_str)
@@ -88,12 +89,14 @@ def execute_code(language, code_str):
 
         else:
             return "Langage non supporté."
+
     except subprocess.TimeoutExpired:
         if language == "java":
             cleanup_java_files()
         if language == "c":
             cleanup_c_files()
         return f"Erreur : temps d'exécution dépassé ({language.capitalize()})."
+
     except Exception as e:
         if language == "java":
             cleanup_java_files()
@@ -104,6 +107,7 @@ def execute_code(language, code_str):
 def handle_request(conn, addr):
     print(f"Connexion du maître: {addr}")
     try:
+        # Lecture du langage
         lang_size_data = conn.recv(4)
         if len(lang_size_data) < 4:
             return
@@ -116,6 +120,7 @@ def handle_request(conn, addr):
             lang_bytes += chunk
         language = lang_bytes.decode('utf-8')
 
+        # Lecture du code
         size_data = conn.recv(4)
         if len(size_data) < 4:
             return
@@ -128,7 +133,7 @@ def handle_request(conn, addr):
             code += chunk
         code_str = code.decode('utf-8')
 
-        print(f"Reçu code {language}, longueur {len(code_str)}")
+        print(f"Esclave : Nouvelle tâche reçue (langage={language}). Exécution en cours...")
 
         response = execute_code(language, code_str)
 
@@ -136,7 +141,7 @@ def handle_request(conn, addr):
         resp_size = len(resp_bytes)
         conn.sendall(resp_size.to_bytes(4, 'big'))
         conn.sendall(resp_bytes)
-        print("Réponse envoyée au maître.")
+        print("Esclave : Tâche terminée, résultat renvoyé au maître.")
 
     except Exception as e:
         print("Erreur handle_request:", e)

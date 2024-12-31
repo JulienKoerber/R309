@@ -7,7 +7,7 @@ import psutil
 
 MASTER_IP = "127.0.0.1"
 MASTER_PORT = 5000
-MAX_LOCAL_TASKS = 2  
+MAX_LOCAL_TASKS = 2  # Seuil local : 2 tâches max en simultané
 SLAVE_SERVERS = [
     ("127.0.0.1", 6000),
 ]
@@ -28,6 +28,7 @@ def cleanup_c_files():
         os.remove("main.out")
 
 def execute_code(language, code_str):
+    # Gestion spéciale si on demande la charge CPU
     if language == "cpu_load" and code_str == "GET_CPU_LOAD":
         cpu_percent = psutil.cpu_percent(interval=0.5)
         return f"Charge CPU actuelle: {cpu_percent:.2f}%"
@@ -45,6 +46,7 @@ def execute_code(language, code_str):
                 return result.stdout
             else:
                 return "Erreur d'exécution Python:\n" + result.stderr
+
         elif language == "java":
             with open("Main.java", "w", encoding="utf-8") as f:
                 f.write(code_str)
@@ -101,12 +103,14 @@ def execute_code(language, code_str):
 
         else:
             return "Langage non supporté."
+
     except subprocess.TimeoutExpired:
         if language == "java":
             cleanup_java_files()
         if language == "c":
             cleanup_c_files()
         return f"Erreur : temps d'exécution dépassé ({language.capitalize()})."
+
     except Exception as e:
         if language == "java":
             cleanup_java_files()
@@ -154,6 +158,7 @@ def handle_client(conn, addr):
     global current_local_tasks
     print(f"Connexion du client {addr}")
     try:
+        # Lecture du langage
         lang_size_data = conn.recv(4)
         if len(lang_size_data) < 4:
             return
@@ -166,6 +171,7 @@ def handle_client(conn, addr):
             lang_bytes += chunk
         language = lang_bytes.decode('utf-8')
 
+        # Lecture du code
         size_data = conn.recv(4)
         if len(size_data) < 4:
             return
@@ -178,25 +184,28 @@ def handle_client(conn, addr):
             code += chunk
         code_str = code.decode('utf-8')
 
-        print(f"Langage reçu: {language}, code de longueur {len(code_str)}")
+        print(f"Langage reçu: {language}, longueur du code : {len(code_str)}")
 
         with current_lock:
             local_load = current_local_tasks
 
+        # Commande spéciale CPU ?
         if language == "cpu_load" and code_str == "GET_CPU_LOAD":
             response = execute_code(language, code_str)
         else:
+            # Vérifier si on a déjà 2 tâches en cours
             if local_load >= MAX_LOCAL_TASKS and SLAVE_SERVERS:
-                print("Charge élevée, tentative de délégation...")
+                print(f"Le maître est saturé ({local_load} tâches déjà en cours). Délégation au serveur esclave...")
                 response = delegate_to_slave(language, code_str)
             else:
                 with current_lock:
                     current_local_tasks += 1
-                print("Exécution du code...")
+                print("Exécution locale de la tâche...")
                 response = execute_code(language, code_str)
                 with current_lock:
                     current_local_tasks -= 1
 
+        # Renvoyer la réponse au client
         resp_bytes = response.encode('utf-8')
         resp_size = len(resp_bytes)
         conn.sendall(resp_size.to_bytes(4, 'big'))
@@ -212,7 +221,7 @@ def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((MASTER_IP, MASTER_PORT))
         s.listen(5)
-        print(f"Serveur maître en écoute sur {MASTER_IP} : {MASTER_PORT}, MAX_LOCAL_TASKS={MAX_LOCAL_TASKS}")
+        print(f"Serveur maître en écoute sur {MASTER_IP}:{MASTER_PORT}, MAX_LOCAL_TASKS={MAX_LOCAL_TASKS}")
         try:
             while True:
                 conn, addr = s.accept()
